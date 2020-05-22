@@ -12,7 +12,7 @@ RUN python -m spacy download en_core_web_md
 COPY . ./
 
 ARG dataset_url
-ADD dataset_url ./test.csv
+ADD ${dataset_url} ./test.csv
 RUN python create_model.py ./test.csv
 
 FROM python:3.7-slim

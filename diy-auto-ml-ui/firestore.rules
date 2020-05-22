@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /datasets/{datasetId} {
+      allow read, delete:  if request.auth != null && request.auth.token.email == resource.data.owner;
+    }
+    match /models/{modelId} {
+      allow read, delete:  if request.auth != null && request.auth.token.email == resource.data.owner;
+    }
+  }
+}

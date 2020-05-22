@@ -1,0 +1,12 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{fileId} {
+      allow write: if request.auth != null 
+      	&& request.resource.size < 1 * 1024 * 1024 * 1024
+        && request.resource.contentType.matches('text/csv')
+        && request.resource.metadata["owner"] == request.auth.token.email
+        && fileId.size() < 64;
+    }
+  }
+}

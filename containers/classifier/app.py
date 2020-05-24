@@ -3,6 +3,7 @@ import os
 import spacy
 from flask import Flask
 from flask import request
+import json
 
 app = Flask(__name__)
 
@@ -19,7 +20,7 @@ def getStats():
     print("getStats")
     with open('./stats.json') as json_file:
         data = json.load(json_file)
-        return '{}'.format(json.dump(data))
+        return '{}'.format(json.dumps(data))
     return '\{\}\n'
 
 @app.route('/', methods=['POST'])

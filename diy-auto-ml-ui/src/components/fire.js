@@ -2,14 +2,14 @@ import * as firebase from 'firebase'
 import 'firebase/firestore'
 
 const config = {
-    apiKey: "<api key>",
-    authDomain: "<auth domain>",
-    databaseURL: "<db url>",
-    projectId: "<project id>",
-    storageBucket: "<storage bucket>",
-    messagingSenderId: "<message sender id>",
-    appId: "<app id>",
-    measurementId: "<meassurement id>"
+    apiKey: "AIzaSyD-NrtmOnZq8XBKu_6n0xJHIB_TttNRRtY",
+    authDomain: "diy-auto-ml.firebaseapp.com",
+    databaseURL: "https://diy-auto-ml.firebaseio.com",
+    projectId: "diy-auto-ml",
+    storageBucket: "diy-auto-ml.appspot.com",
+    messagingSenderId: "485587965804",
+    appId: "1:485587965804:web:2d93c36a4f3e7df4880549",
+    measurementId: "G-RCFBF26SPV"
 };
 
 const firebaseApp = firebase.initializeApp(config);

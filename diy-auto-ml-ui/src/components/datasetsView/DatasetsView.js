@@ -94,6 +94,10 @@ export class DatasetsView extends Component {
            return (<Table.Cell><Label color={"yellow"} content={state} /></Table.Cell>)        
         } else if (state === "READY_FOR_TRAINING") {
             return (<Table.Cell><Label color={"blue"} content={state} /></Table.Cell>)     
+        } else if (state === "TRAINING") {
+            return (<Table.Cell><Label color={"olive"}>{state}<Loader style={{marginLeft: "8px"}} size={"tiny"} active inline /></Label></Table.Cell>)     
+        }  else if (state === "MODEL_READY") {
+            return (<Table.Cell><Label color={"green"}>{state}</Label></Table.Cell>)     
         } else if (state === "ERROR") {
             return (<Table.Cell><Popup position={"bottom left"} content={message} trigger={<Label color={"red"} content={state} />} /></Table.Cell>)     
         } else {
@@ -105,12 +109,12 @@ export class DatasetsView extends Component {
         return this.state.datasets.map((dataset) => {
             return(
                 <Table.Row key={dataset.id}>
-                    <Table.Cell><Link onClick={() => {history.push(`dataset/${dataset.id}`)}}>{dataset.name}</Link></Table.Cell>
+                    <Table.Cell><Link onClick={() => {history.push(`/dataset/${dataset.id}`)}}>{dataset.name}</Link></Table.Cell>
                     {this.render_state(dataset.state, dataset.message)}
                     <Table.Cell>{dataset.entries}</Table.Cell>
                     <Table.Cell>{dataset.label_count}</Table.Cell>
-                    <Table.Cell>{epoch_to_local(dataset.last_update)}</Table.Cell>
                     <Table.Cell>{epoch_to_local(dataset.created_at)}</Table.Cell>
+                    <Table.Cell>{epoch_to_local(dataset.last_update)}</Table.Cell>
                     <Table.Cell style={{maxWidth: "20px"}}>
                         <Popup position={"bottom right"} flowing hoverable trigger={<Icon name="ellipsis vertical" />}>
                             <Button color={"red"}>Delete</Button>
@@ -142,8 +146,8 @@ export class DatasetsView extends Component {
                     <Table.HeaderCell>Status</Table.HeaderCell>
                     <Table.HeaderCell>Entries</Table.HeaderCell>
                     <Table.HeaderCell># of Labels</Table.HeaderCell>
-                    <Table.HeaderCell>Last Update</Table.HeaderCell>
                     <Table.HeaderCell>Created at</Table.HeaderCell>
+                    <Table.HeaderCell>Last Update</Table.HeaderCell>
                     <Table.HeaderCell></Table.HeaderCell>
                 </Table.Row>
                 </Table.Header>

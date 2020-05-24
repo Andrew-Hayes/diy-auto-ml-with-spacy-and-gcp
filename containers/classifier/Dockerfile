@@ -25,6 +25,7 @@ WORKDIR $APP_HOME
 RUN pip install Flask gunicorn spacy
 
 COPY --from=builder /app/model/ ./model/
+COPY --from=builder /app/stats.json ./
 COPY ./app.py ./
 
 # Run the web service on container startup. Here we use the gunicorn

@@ -1,8 +1,10 @@
 import React, { Component } from 'react';
-import { Dimmer, Loader, Button, Menu } from 'semantic-ui-react';
+import { Dimmer, Loader, Button, Menu, Segment, Container, Divider, Header, Table, Popup, Icon } from 'semantic-ui-react';
 import { db } from '../fire';
 import MainLayout from '../mainLayout/MainLayout'
+import { Link } from 'react-router-dom';
 import history from '../../utils/history'
+import {epoch_to_local} from '../../utils/helpers'
 
 export class ModelsView extends Component {
     state = {
@@ -56,7 +58,14 @@ export class ModelsView extends Component {
         const models = snapshot.docs.map(docSnapshot => {
           const docData = docSnapshot.data();
           return ({
-            id: docSnapshot.id
+            id: docSnapshot.id,
+            created_at: docData.created_at,
+            last_update: docData.last_update,
+            dataset: docData.dataset || "",
+            datasetDoc: docData.datasetDoc || "",
+            model_stats: docData.model_stats || {},
+            model_url: docData.model_url || "",
+            name: docData.modelName || "",
           })
         });
         this.setState({
@@ -64,6 +73,49 @@ export class ModelsView extends Component {
             loading: false,
         })
       };
+
+    render_table_rows() {
+        return this.state.models.map((model) => {
+            return(
+                <Table.Row key={model.id}>
+                    <Table.Cell><Link onClick={() => {history.push(`/model/${model.id}`)}}>{model.name}</Link></Table.Cell>
+                    <Table.Cell><Link onClick={() => {history.push(`/dataset/${model.datasetDoc}`)}}>{model.dataset}</Link></Table.Cell>
+                    <Table.Cell>{model.model_stats.fvalue}</Table.Cell>
+                    <Table.Cell>{model.model_stats.predict}</Table.Cell>
+                    <Table.Cell>{model.model_stats.recall}</Table.Cell>
+                    <Table.Cell>{epoch_to_local(model.created_at)}</Table.Cell>
+                    <Table.Cell>{epoch_to_local(model.last_update)}</Table.Cell>
+                    <Table.Cell style={{maxWidth: "20px"}}>
+                        <Popup position={"bottom right"} flowing hoverable trigger={<Icon name="ellipsis vertical" />}>
+                            <Button color={"red"}>Delete</Button>
+                        </Popup>
+                    </Table.Cell>
+                </Table.Row>
+            )
+        })
+    }
+
+    render_models_table() {
+        return (
+            <Table celled>
+                <Table.Header>
+                    <Table.Row>
+                        <Table.HeaderCell>Name</Table.HeaderCell>
+                        <Table.HeaderCell>Dataset</Table.HeaderCell>
+                        <Table.HeaderCell>Precision</Table.HeaderCell>
+                        <Table.HeaderCell>Predict</Table.HeaderCell>
+                        <Table.HeaderCell>Recall</Table.HeaderCell>
+                        <Table.HeaderCell>Created at</Table.HeaderCell>
+                        <Table.HeaderCell>Last Update</Table.HeaderCell>
+                        <Table.HeaderCell></Table.HeaderCell>
+                    </Table.Row>
+                </Table.Header>
+                <Table.Body>
+                    {this.render_table_rows()}
+                </Table.Body>
+            </Table>
+        )
+    }
 
 
     render_content() {
@@ -75,13 +127,20 @@ export class ModelsView extends Component {
             )
         }
         else {
-            return (
-                <span style={{padding: "20px"}}>
-                    No models trained yet....
-                    <br/><br />
+            if (this.state.models.length > 0) {
+                return (this.render_models_table())
+            } else {
+                return (
+                <Container textAlign={'center'} style={{ width: '300px', paddingTop: '10vh' }}>
+                <Segment padded>
+                    <Header as="h3">No models trained yet....</Header>
+                    <Divider />
                     <Button primary onClick={() => {history.push("/datasets")}} content={"Go to Datasets"} />
-                </span>
+                </Segment>
+            </Container>
             )
+            }
+            
         }
     }
 

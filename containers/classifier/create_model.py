@@ -15,6 +15,7 @@ import random
 from pathlib import Path
 import csv
 from collections import defaultdict
+import json
 
 import spacy
 from spacy.util import minibatch, compounding
@@ -77,14 +78,21 @@ def main(input_file, n_iter=20, n_split=0.8):
             with textcat.model.use_params(optimizer.averages):
                 # evaluate on the dev data split off in load_data()
                 scores = evaluate(nlp.tokenizer, textcat, dev_texts, dev_cats, largestLabel.upper())
-            print(
-                "{0:.3f}\t{1:.3f}\t{2:.3f}\t{3:.3f}".format(  # print a simple table
-                    losses["textcat"],
-                    scores["textcat_p"],
-                    scores["textcat_r"],
-                    scores["textcat_f"],
+                print(
+                    "{0:.3f}\t{1:.3f}\t{2:.3f}\t{3:.3f}".format(  # print a simple table
+                        losses["textcat"],
+                        scores["textcat_p"],
+                        scores["textcat_r"],
+                        scores["textcat_f"],
+                    )
                 )
-            )
+                with open('./stats.json', 'w') as fp:
+                    stats = {
+                        "predict": "{0:.3f}".format(scores["textcat_p"]),
+                        "recall": "{0:.3f}".format(scores["textcat_r"]),
+                        "fvalue": "{0:.3f}".format(scores["textcat_f"]),
+                    }
+                    json.dump(stats, fp)
 
     with nlp.use_params(optimizer.averages):
         nlp.to_disk(output_dir)

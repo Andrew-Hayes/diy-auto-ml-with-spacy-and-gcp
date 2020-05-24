@@ -17,6 +17,9 @@ def load_model():
 @app.route('/stats', methods=['GET'])
 def getStats():
     print("getStats")
+    with open('./stats.json') as json_file:
+        data = json.load(json_file)
+        return '{}'.format(json.dump(data))
     return '\{\}\n'
 
 @app.route('/', methods=['POST'])

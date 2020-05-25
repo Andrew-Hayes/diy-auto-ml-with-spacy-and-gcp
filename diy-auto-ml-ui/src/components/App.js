@@ -5,6 +5,7 @@ import history from '../utils/history';
 import Login from './auth/Login';
 import DatasetsView from './datasetsView/DatasetsView';
 import DatasetView from './datasetView/DatasetView';
+import ModelView from './modelView/ModelView';
 import ModelsView from './modelsView/ModelsView';
 import { Route, Router, Switch, Redirect } from 'react-router-dom';
 import { auth } from './fire';
@@ -63,6 +64,7 @@ export class App extends Component {
                             <Redirect to={{ pathname: `/dataset/${props.match.params.datasetID}/train` }} />
                         )} />
                         <LoggedInRoute authStatus={this.state.loggedIn} user={this.state.user} exact path="/datasets" component={DatasetsView} />
+                        <LoggedInRoute authStatus={this.state.loggedIn} user={this.state.user} path="/model/:modelID" component={ModelView} />
                         <LoggedInRoute authStatus={this.state.loggedIn} user={this.state.user} exact path="/models" component={ModelsView} />
                     </Switch>
                 </Router>

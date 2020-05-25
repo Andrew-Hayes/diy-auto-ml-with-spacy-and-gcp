@@ -11,9 +11,26 @@ const { GoogleAuth } = require('google-auth-library');
 let auth;
 
 const projectID = "diy-auto-ml"
-const datasetBucket = "diy-auto-ml-dataset-datasets"
+const datasetBucket = `${projectID}-dataset-datasets`
+const repoitoryName = "github_andrew-hayes_diy-auto-ml-with-spacy-and-gcp"
+const region = "europe-west1" // limited to: asia-east1, europe-west1, us-central1, asia-northeast1, europe-north1, europe-west4, us-east1, us-east4, us-west1
 
-exports.build_updated = functions.region('europe-west1').pubsub.topic('cloud-builds').onPublish((message) => {
+const runtimeOpts = {
+    timeoutSeconds: 300,
+    memory: '128MB'
+}
+
+const runtimeOptsLarge = {
+    timeoutSeconds: 540,
+    memory: '2GB'
+}
+
+const runtimeOptsSmall = {
+    timeoutSeconds: 60,
+    memory: '128MB'
+}
+
+exports.build_updated = functions.region(region).runWith(runtimeOpts).pubsub.topic('cloud-builds').onPublish((message) => {
     // These options will allow temporary read access to the file
     const buildMessage = message.json ? message.json : undefined;
     console.log(buildMessage);
@@ -38,17 +55,23 @@ exports.build_updated = functions.region('europe-west1').pubsub.topic('cloud-bui
             }
             let model_url;
             let model_stats;
+            let authClient;
             return auth.getClient()
                 .then((client) => {
+                    authClient = client
                     console.log("got client, getting url for model")
-                    var options = { url: `https://europe-west1-run.googleapis.com/apis/serving.knative.dev/v1/namespaces/${projectID}/services/${buildMessage.tags[1]}` };
-                    return client.request(options);
+                    var options = { url: `https://${region}-run.googleapis.com/apis/serving.knative.dev/v1/namespaces/${projectID}/services/${buildMessage.tags[1]}` };
+                    return authClient.request(options);
                 }).then((res) => {
                     console.log("got cloud run data")
-                    console.log(res.data)
+                    console.log(JSON.stringify(res.data))
                     model_url = res.data.status.url
+                    // sleep for a bit to allow the deployment to complete
+                    return sleep(60000)
+                }).then(() => {
                     var options = { url: `${model_url}/stats` };
-                    return client.request(options);
+                    console.log(options)
+                    return authClient.request(options);
                 }).then((res) => {
                     console.log("got cloud run stats")
                     console.log(res.data)
@@ -59,12 +82,13 @@ exports.build_updated = functions.region('europe-west1').pubsub.topic('cloud-bui
                     return modelRef.set({
                         owner: datasetData.owner,
                         dataset: datasetData.name,
-                        datasetDoc: doc.id,
+                        dataset_doc: doc.id,
                         created_at: Math.round((new Date()).getTime() / 1000),
                         last_update: Math.round((new Date()).getTime() / 1000),
                         model_url: model_url,
                         model_stats: model_stats,
-                        modelName: buildMessage.tags[1],
+                        entries: datasetData.entries,
+                        model_name: buildMessage.tags[1],
                     })
                 }).then(() => {
                     return datasetRef.update({
@@ -78,13 +102,168 @@ exports.build_updated = functions.region('europe-west1').pubsub.topic('cloud-bui
                 }).then(() => {
                     console.log("FIN")
                 }).catch((err) => {
-                    reject(err)
+                    console.log("caught error")
+                    console.error(err)
+                    return db.collection('datasets').doc(datasetID).update({
+                        state: "ERROR",
+                        last_update: Math.round((new Date()).getTime() / 1000),
+                        message: "error deploying model"
+                    })
                 })
+        } else {
+            // this is for states like "working"
+            return Promise.resolve()
         }
     }
 });
 
-exports.test_model = functions.region('europe-west1').https.onCall((data, context) => {
+exports.delete_dataset = functions.region(region).runWith(runtimeOptsSmall).https.onCall((data, context) => {
+    if (!context.auth) {
+        console.log('Not authed');
+        // Throwing an HttpsError so that the client gets the error details.
+        throw new functions.https.HttpsError('failed-precondition', 'The function must be called ' +
+            'while authenticated.');
+    }
+    const email = context.auth.token.email || null;
+    // Message text passed from the client.
+    const datasetID = data.datasetID || "";
+    if (datasetID === "") {
+        console.log('empty dataset ID!');
+        // Throwing an HttpsError so that the client gets the error details.
+        throw new functions.https.HttpsError('failed-precondition', 'The function must be called ' +
+            'with a valid dataset ID');
+    }
+
+    if (!auth) {
+        auth = new GoogleAuth({
+            scopes: 'https://www.googleapis.com/auth/cloud-platform'
+        });
+    }
+    let datasetData;
+    let authClient;
+    const datasetRef = db.collection('datasets').doc(datasetID)
+    return datasetRef.get().then((doc) => {
+        if (!doc.exists) {
+            console.log('No such document!');
+            // Throwing an HttpsError so that the client gets the error details.
+            throw new functions.https.HttpsError('failed-precondition', 'The function must be called ' +
+                'with a valid dataset id');
+        }
+        datasetData = doc.data()
+        if (email !== datasetData.owner) {
+            console.log('Not the owner');
+            // Throwing an HttpsError so that the client gets the error details.
+            throw new functions.https.HttpsError('failed-precondition', 'Owner of the document must' +
+                'initiate deletion');
+        }
+        return auth.getClient()
+    }).then((client) => {
+        authClient = client
+        console.log("got client")
+        if (datasetData.model_id && datasetData.model_id !== "") {
+            return delete_dataset_model(authClient, datasetData.model_id)
+        } else {
+            return Promise.resolve()
+        }
+    }).then(() => {
+        console.log("deleting file")
+        return admin.storage().bucket(datasetBucket).file(`${datasetData.id}.csv`).delete()
+    }).then((res) => {
+        console.log(res.data)
+        return datasetRef.delete()
+    }).then(() => {
+        console.log("FIN")
+    }).catch((err) => {
+        console.error(err)
+    })
+});
+
+function delete_dataset_model(authClient, modelID) {
+    console.log(`deleting model ${modelID}`)
+    const modelRef = db.collection('models').doc(modelID)
+    return modelRef.get().then((doc) => {
+        modelData = doc.data()
+        console.log("got client")
+        var options = {
+            method: 'DELETE',
+            url: `https://${region}-run.googleapis.com/apis/serving.knative.dev/v1/namespaces/${projectID}/services/${modelData.model_name}`
+         };
+        return authClient.request(options);
+    }).then((res) => {
+        console.log(`model service deleted`)
+        console.log(res.data)
+        return modelRef.delete()
+    })
+}
+
+exports.delete_model = functions.region(region).runWith(runtimeOptsSmall).https.onCall((data, context) => {
+    if (!context.auth) {
+        console.log('Not authed');
+        // Throwing an HttpsError so that the client gets the error details.
+        throw new functions.https.HttpsError('failed-precondition', 'The function must be called ' +
+            'while authenticated.');
+    }
+    const email = context.auth.token.email || null;
+    // Message text passed from the client.
+    const modelID = data.modelID || "";
+    if (modelID === "") {
+        console.log('empty model ID!');
+        // Throwing an HttpsError so that the client gets the error details.
+        throw new functions.https.HttpsError('failed-precondition', 'The function must be called ' +
+            'with a valid model ID');
+    }
+
+    if (!auth) {
+        auth = new GoogleAuth({
+            scopes: 'https://www.googleapis.com/auth/cloud-platform'
+        });
+    }
+    let docData;
+    let authClient;
+    const modelRef = db.collection('models').doc(modelID)
+    return modelRef.get().then((doc) => {
+        if (!doc.exists) {
+            console.log('No such document!');
+            // Throwing an HttpsError so that the client gets the error details.
+            throw new functions.https.HttpsError('failed-precondition', 'The function must be called ' +
+                'with a valid model id');
+        }
+        docData = doc.data()
+        if (email !== docData.owner) {
+            console.log('Not the owner');
+            // Throwing an HttpsError so that the client gets the error details.
+            throw new functions.https.HttpsError('failed-precondition', 'Owner of the document must' +
+                'initiate deletion');
+        }
+        return auth.getClient()
+    }).then((client) => {
+        authClient = client
+        console.log("got client")
+        var options = {
+            method: 'DELETE',
+            url: `https://${region}-run.googleapis.com/apis/serving.knative.dev/v1/namespaces/${projectID}/services/${docData.model_name}`
+         };
+        return authClient.request(options);
+    }).then((res) => {
+        console.log(res.data)
+        return modelRef.delete()
+    }).then(() => {
+        return db.collection("datasets").doc(docData.dataset_doc).update({
+            state: "READY_FOR_TRAINING",
+            last_update: Math.round((new Date()).getTime() / 1000),
+            model_url: "",
+            model_name: "",
+            model_id: "",
+            model_stats: {}
+        })
+    }).then(() => {
+        console.log("FIN")
+    }).catch((err) => {
+        console.error(err)
+    })
+});
+
+exports.test_model = functions.region(region).runWith(runtimeOptsSmall).https.onCall((data, context) => {
     if (!context.auth) {
         console.log('Not authed');
         // Throwing an HttpsError so that the client gets the error details.
@@ -132,7 +311,7 @@ exports.test_model = functions.region('europe-west1').https.onCall((data, contex
         })
 });
 
-exports.train_model = functions.region('europe-west1').https.onCall((data, context) => {
+exports.train_model = functions.region(region).runWith(runtimeOptsSmall).https.onCall((data, context) => {
     if (!context.auth) {
         console.log('Not authed');
         // Throwing an HttpsError so that the client gets the error details.
@@ -178,7 +357,7 @@ exports.train_model = functions.region('europe-west1').https.onCall((data, conte
             expires: Date.now() + 20 * 60 * 1000, // 15 minutes
         };
         // Get a v4 signed URL for reading the file
-        return admin.storage().bucket("diy-auto-ml-dataset-datasets").file(`${docData.id}.csv`).getSignedUrl(options)
+        return admin.storage().bucket(datasetBucket).file(`${docData.id}.csv`).getSignedUrl(options)
     }).then(([url]) => {
         console.log('Generated GET signed URL:');
         console.log(url);
@@ -193,8 +372,8 @@ exports.train_model = functions.region('europe-west1').https.onCall((data, conte
         const buildRequest = {
             "source": {
                 "repoSource": {
-                    "projectId": "diy-auto-ml",
-                    "repoName": "github_andrew-hayes_diy-auto-ml-with-spacy-and-gcp",
+                    "projectId": projectID,
+                    "repoName": repoitoryName,
                     "dir": "containers/classifier",
                     "branchName": "master"
                 }
@@ -205,7 +384,7 @@ exports.train_model = functions.region('europe-west1').https.onCall((data, conte
                     "args": [
                         "build",
                         "-t",
-                        `gcr.io/diy-auto-ml/classifier:${datasetID}`,
+                        `gcr.io/${projectID}/classifier:${datasetID}`,
                         ".",
                         "--build-arg",
                         `dataset_url=${signedURL}`
@@ -215,7 +394,7 @@ exports.train_model = functions.region('europe-west1').https.onCall((data, conte
                     "name": "gcr.io/cloud-builders/docker",
                     "args": [
                         "push",
-                        `gcr.io/diy-auto-ml/classifier:${datasetID}`
+                        `gcr.io/${projectID}/classifier:${datasetID}`
                     ]
                 },
                 {
@@ -225,9 +404,9 @@ exports.train_model = functions.region('europe-west1').https.onCall((data, conte
                         "deploy",
                         `model-${datasetID.toLowerCase()}`,
                         "--image",
-                        `gcr.io/diy-auto-ml/classifier:${datasetID}`,
+                        `gcr.io/${projectID}/classifier:${datasetID}`,
                         "--region",
-                        "europe-west1",
+                        region,
                         "--platform",
                         "managed",
                         "--memory",
@@ -239,7 +418,7 @@ exports.train_model = functions.region('europe-west1').https.onCall((data, conte
                 }
             ],
             "images": [
-                `gcr.io/diy-auto-ml/classifier:${datasetID}`
+                `gcr.io/${projectID}/classifier:${datasetID}`
             ],
             "tags": [
                 `${datasetID}`,
@@ -251,7 +430,7 @@ exports.train_model = functions.region('europe-west1').https.onCall((data, conte
 
         var options = {
             method: 'POST',
-            url: 'https://cloudbuild.googleapis.com/v1/projects/diy-auto-ml/builds',
+            url: `https://cloudbuild.googleapis.com/v1/projects/${projectID}/builds`,
             data: buildRequest,
         };
         return client.request(options);
@@ -270,7 +449,7 @@ exports.train_model = functions.region('europe-west1').https.onCall((data, conte
 
 });
 
-exports.validate_upload = functions.region('europe-west1').storage.object().onFinalize(async (object) => {
+exports.validate_upload = functions.region(region).runWith(runtimeOptsLarge).storage.object().onFinalize(async (object) => {
     const fileBucket = object.bucket; // The Storage bucket that contains the file.
     const fileName = path.basename(object.name); // File path in the bucket.
     const tempFilePath = path.join(os.tmpdir(), fileName);
@@ -361,3 +540,9 @@ exports.validate_upload = functions.region('europe-west1').storage.object().onFi
         })
     })
 });
+
+
+function sleep(milliseconds) {
+    console.log(`sleeping for ${milliseconds} ms`)
+    return new Promise(resolve => setTimeout(resolve, milliseconds))
+}

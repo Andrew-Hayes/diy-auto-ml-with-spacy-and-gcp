@@ -1,7 +1,8 @@
 import React, { Component } from 'react';
 import { Dimmer, Loader, Button, Menu, Segment, Container, Divider, Header, Table, Popup, Icon } from 'semantic-ui-react';
-import { db } from '../fire';
+import { db, functions } from '../fire';
 import MainLayout from '../mainLayout/MainLayout'
+import DeleteModal from '../deleteModal/DeleteModal'
 import { Link } from 'react-router-dom';
 import history from '../../utils/history'
 import {epoch_to_local} from '../../utils/helpers'
@@ -11,6 +12,7 @@ export class ModelsView extends Component {
         user: this.props.user,
         activeItem: 'models',
         models: [],
+        modelToDelete: "",
         loading: true
     };
 
@@ -62,10 +64,10 @@ export class ModelsView extends Component {
             created_at: docData.created_at,
             last_update: docData.last_update,
             dataset: docData.dataset || "",
-            datasetDoc: docData.datasetDoc || "",
+            datasetDoc: docData.dataset_doc || "",
             model_stats: docData.model_stats || {},
             model_url: docData.model_url || "",
-            name: docData.modelName || "",
+            name: docData.model_name || "",
           })
         });
         this.setState({
@@ -73,6 +75,21 @@ export class ModelsView extends Component {
             loading: false,
         })
       };
+
+    close_delete() {
+        this.setState({
+            modelToDelete: ""
+        })
+    }
+
+    handle_delete(modelID) {
+        var delete_model = functions.httpsCallable('delete_model');
+        return delete_model({ modelID: modelID })
+        .then(() => {
+        }).catch((error) => {
+            console.error(error)
+        });
+    }
 
     render_table_rows() {
         return this.state.models.map((model) => {
@@ -87,8 +104,15 @@ export class ModelsView extends Component {
                     <Table.Cell>{epoch_to_local(model.last_update)}</Table.Cell>
                     <Table.Cell style={{maxWidth: "20px"}}>
                         <Popup position={"bottom right"} flowing hoverable trigger={<Icon name="ellipsis vertical" />}>
-                            <Button color={"red"}>Delete</Button>
+                            <Button color={"red"} onClick={() => {this.setState({modelToDelete: model.id})}}>Delete</Button>
                         </Popup>
+                        <DeleteModal 
+                                open={this.state.modelToDelete === model.id} 
+                                close={this.close_delete.bind(this)} 
+                                delete={this.handle_delete.bind(this)} 
+                                itemName={model.name}
+                                itemID={model.id}
+                                message={"Are you sure you want to delete this model?"}/> 
                     </Table.Cell>
                 </Table.Row>
             )
@@ -131,14 +155,14 @@ export class ModelsView extends Component {
                 return (this.render_models_table())
             } else {
                 return (
-                <Container textAlign={'center'} style={{ width: '300px', paddingTop: '10vh' }}>
-                <Segment padded>
-                    <Header as="h3">No models trained yet....</Header>
-                    <Divider />
-                    <Button primary onClick={() => {history.push("/datasets")}} content={"Go to Datasets"} />
-                </Segment>
-            </Container>
-            )
+                    <Container textAlign={'center'} style={{ width: '300px', paddingTop: '10vh' }}>
+                        <Segment padded>
+                            <Header as="h3">No models trained yet....</Header>
+                            <Divider />
+                            <Button primary onClick={() => {history.push("/datasets")}} content={"Go to Datasets"} />
+                        </Segment>
+                    </Container>
+                )
             }
             
         }

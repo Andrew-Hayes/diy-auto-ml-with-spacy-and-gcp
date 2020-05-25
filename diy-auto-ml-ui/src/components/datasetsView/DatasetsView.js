@@ -1,8 +1,9 @@
 import React, { Component } from 'react';
-import { Table, Dimmer, Loader, Label, Popup, Button, Icon, Menu } from 'semantic-ui-react';
-import { db } from '../fire';
+import { Table, Dimmer, Loader, Label, Popup, Button, Icon, Menu, Container, Segment, Header, Divider } from 'semantic-ui-react';
+import { db, functions } from '../fire';
 import Upload from '../upload/Upload'
 import MainLayout from '../mainLayout/MainLayout'
+import DeleteModal from '../deleteModal/DeleteModal'
 import {epoch_to_local} from '../../utils/helpers'
 import history from '../../utils/history'
 import { Link } from 'react-router-dom';
@@ -13,7 +14,8 @@ export class DatasetsView extends Component {
         activeItem: 'datasets',
         addDatasetModal: false,
         datasets: [],
-        loading: true
+        loading: true,
+        datasetToDelete: ""
     };
 
     componentDidMount() {
@@ -89,6 +91,21 @@ export class DatasetsView extends Component {
         })
     };
 
+    close_delete() {
+        this.setState({
+            datasetToDelete: ""
+        })
+    }
+
+    handle_delete(datasetID) {
+        var delete_dataset = functions.httpsCallable('delete_dataset');
+        return delete_dataset({ datasetID: datasetID })
+        .then(() => {
+        }).catch((error) => {
+            console.error(error)
+        });
+    }
+
     render_state(state, message) {
         if (state === "AWAITING_ANALYSIS") {
            return (<Table.Cell><Label color={"yellow"} content={state} /></Table.Cell>)        
@@ -117,8 +134,15 @@ export class DatasetsView extends Component {
                     <Table.Cell>{epoch_to_local(dataset.last_update)}</Table.Cell>
                     <Table.Cell style={{maxWidth: "20px"}}>
                         <Popup position={"bottom right"} flowing hoverable trigger={<Icon name="ellipsis vertical" />}>
-                            <Button color={"red"}>Delete</Button>
+                            <Button color={"red"} onClick={() => {this.setState({datasetToDelete: dataset.id})}}>Delete</Button>
                         </Popup>
+                        <DeleteModal 
+                                open={this.state.datasetToDelete === dataset.id} 
+                                close={this.close_delete.bind(this)} 
+                                delete={this.handle_delete.bind(this)} 
+                                itemName={dataset.name}
+                                itemID={dataset.id}
+                                message={"Are you sure you want to delete this dataset AND any assoicated models?"}/> 
                     </Table.Cell>
                 </Table.Row>
             )
@@ -163,6 +187,21 @@ export class DatasetsView extends Component {
         )
     }
 
+    render_segment() {
+        if(this.state.datasets && this.state.datasets.length < 1) {
+            return (<Container textAlign={'center'} style={{ width: '300px', paddingTop: '10vh' }}>
+                        <Segment padded>
+                            <Header as="h3">No Datasets uploaded yet....</Header>
+                            <Divider />
+                            <Button style={{maxHeight: "33px"}} icon size='tiny' primary labelPosition='right' onClick={this.add_dataset.bind(this)}>
+                                Add Dataset
+                                <Icon name='plus' />
+                            </Button>
+                        </Segment>
+                    </Container>)
+        }
+    }
+
     render_content() {
         if (!this.state.user || this.state.loading) {
             return (
@@ -175,7 +214,8 @@ export class DatasetsView extends Component {
             return (
                 <span>
                     {this.render_table()}
-                    <Upload open={this.state.addDatasetModal} close={this.close_add_dataset.bind(this)} user={this.state.authUser}/>
+                    <Upload open={this.state.addDatasetModal} close={this.close_add_dataset.bind(this)} user={this.state.user}/>
+                    {this.render_segment()}
                 </span>
             )
         }

@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import * as firebase from 'firebase'
-import { Modal, Header, Form, Icon, Button, Input, Label } from 'semantic-ui-react'
+import { Modal, Header, Form, Icon, Button, Input, Label, Message } from 'semantic-ui-react'
 import { db, storage } from '../fire';
 
 export class Upload extends Component {
@@ -30,14 +30,12 @@ export class Upload extends Component {
 
 
     nameChange = (e) => {
-        console.log(e.target.value)
         this.setState({
             name: e.target.value.slice(0, 32)
         })
       };
 
     fileChange = (e) => {
-        console.log(e.target.files)
         if (e.target.files[0] && e.target.files[0].name) {
             let wrongType = e.target.files[0].type !== "text/csv"
             let tooLarge = e.target.files[0].size > 1073741824
@@ -88,18 +86,24 @@ export class Upload extends Component {
             case firebase.storage.TaskState.RUNNING: // or 'running'
                 console.log(progress)
                 break;
+            default:
+                console.log(progress)
+                break;
             }
         }, (error) => {
             switch (error.code) {
                 case 'storage/unauthorized':
-                // User doesn't have permission to access the object
-                break;
+                    // User doesn't have permission to access the object
+                    break;
                 case 'storage/canceled':
-                // User canceled the upload
-                break;
+                    // User canceled the upload
+                    break;
                 case 'storage/unknown':
-                // Unknown error occurred, inspect error.serverResponse
-                break;
+                    // Unknown error occurred, inspect error.serverResponse
+                    break;
+                default:
+                    console.log(error.code)
+                    break;
             }
             this.setState({
                 uploading: false
@@ -140,15 +144,28 @@ export class Upload extends Component {
     render() {
         return (
             <Modal size={"tiny"} centered open={this.state.open} closeIcon onClose={this.props.close}>
-                <Header icon='plus' content='Add Dataset' />
+                <Header icon='plus' content='Upload a dataset for model training' />
                 <Modal.Content>
                     <p>
-                        Upload a dataset for model training
+                        Here you can select your dataset file for upload. 
+
+                        Once it is uploaded and analysed you can use it to train a model.
+                    </p>
+                    <Message attached content={"Datasets need to be in the following csv format:"} />
+                    <Message className={"code"} attached style={{ minHeight: "90px" }}>
+                        "Text I want to classify","label1"<br/>
+                        "More text I would like to classify","label1"<br/>
+                        "Another example","label2"<br/>
+                        "Last text to classify","label1"<br/>
+                    </Message>
+                    <br/>
+                    <p>
+                        Please select a file below in this format
                     </p>
                     <Form loading={this.state.uploading}>
-                        <Form.Input placeholder={"Dataset Name"} value={this.state.name} onChange={this.nameChange}/>
+                        <Form.Input label={"Dataset name"} placeholder={"Dataset Name"} value={this.state.name} onChange={this.nameChange}/>
                         <Form.Field>
-                            <label>Dataset upload </label>
+                            <label>Dataset .csv file</label>
                             <input
                                 type="file"
                                 id="file"
@@ -158,14 +175,17 @@ export class Upload extends Component {
                             <Input
                                 fluid
                                 error={this.state.wrongType || this.state.tooLarge}
-                                placeholder="Select dataset to upload"
+                                placeholder="Select .csv file to upload ->"
                                 readOnly
                                 loading={this.state.uploading}
                                 value={this.state.fileName}
                                 action={
-                                    <Button as="label" htmlFor="file" type="button" animated="fade">
+                                    <Button positive as="label" htmlFor="file" type="button" animated="fade">
                                         <Button.Content visible>
-                                            <Icon name="file" />
+                                        <Icon.Group>
+                                            <Icon name='file' />
+                                            <Icon corner name='add' />
+                                        </Icon.Group>
                                         </Button.Content>
                                         <Button.Content hidden>Select</Button.Content>
                                     </Button>

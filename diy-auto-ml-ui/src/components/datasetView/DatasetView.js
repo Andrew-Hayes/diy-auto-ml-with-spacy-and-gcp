@@ -1,11 +1,11 @@
 import React, { Component } from 'react';
-import { Dimmer, Loader, Icon, Menu, Table, Progress, Button, Message, Container, Segment, Header, Divider, Label, Grid, Form, TextArea, Statistic, Card } from 'semantic-ui-react';
+import { Dimmer, Loader, Icon, Menu, Table, Progress, Button, Message, Container, Segment, Header, Divider, Label, Form, TextArea, Popup } from 'semantic-ui-react';
 import { Link } from 'react-router-dom';
 import { db, functions } from '../fire';
 import MainLayout from '../mainLayout/MainLayout'
-import RadialChart from '../radialChart/RadialChart'
+import ModelStats from '../modelStats/ModelStats'
 import history from '../../utils/history'
-import {epoch_to_local} from '../../utils/helpers'
+
 
 export class DatasetView extends Component {
     state = {
@@ -96,7 +96,6 @@ export class DatasetView extends Component {
     };
 
     text_change = (e) => {
-        console.log(e.target.value)
         this.setState({
             classify_text: e.target.value
         })
@@ -104,9 +103,9 @@ export class DatasetView extends Component {
 
     train_model() {
         var train_model = functions.httpsCallable('train_model');
-        train_model({ datasetID: this.state.datasetID }).then((result) => {
-            // Read result of the Cloud Function.
-            console.log(result)
+        train_model({ datasetID: this.state.datasetID })
+        .then(() => {
+            
         }).catch((error) => {
             console.error(error)
         });
@@ -119,7 +118,6 @@ export class DatasetView extends Component {
         var classify_text_func = functions.httpsCallable('test_model');
         classify_text_func({ modelURL: this.state.dataset.model_url, text: this.state.classify_text }).then((result) => {
             // Read result of the Cloud Function.
-            console.log(result)
             this.setState({
                 classifying: false,
                 classify_result: result.data,
@@ -173,7 +171,8 @@ export class DatasetView extends Component {
                         <br /><br />
                         <Button loading={this.state.classifying} disabled={this.state.classifying} style={{ maxHeight: "33px" }} primary onClick={() => this.classify_text()}>
                             Classify
-                        </Button>
+                        </Button> 
+                        <span>The first time you run this can take a while.</span>
                         <Divider />
 
                         <Message attached content={"Result"} style={{ maxWidth: "50%" }} />
@@ -197,60 +196,13 @@ export class DatasetView extends Component {
                     <span>
                         We created a model from your dataset and this is how well it performed
                     </span>
-                    <br /><br/>
-                    <Grid columns={5} divided>
-                        <Grid.Row>
-                            <Grid.Column>
-                                <Grid style={{ textAlign: "center" }}>
-                                    <Grid.Column width={12} style={{ margin: "auto" }}>
-                                        <Header style={{ marginBottom: "2px" }}as='h3'>Last Updated</Header>
-                                        <Header style={{ marginTop: "10px" }} as='h3'>{epoch_to_local(this.state.dataset.created_at)}</Header>
-                                    </Grid.Column>
-                                </Grid>
-                            </Grid.Column>
-                            <Grid.Column>
-                                <Grid style={{ textAlign: "center" }}>
-                                    <Grid.Column width={12} style={{ margin: "auto" }}>
-                                        <Header style={{ marginBottom: "2px" }}as='h3'>Analysed</Header>
-                                        <Header style={{ marginTop: "2px" }} as='h1'>{this.state.dataset.entries} Items</Header>
-                                    </Grid.Column>
-                                </Grid>
-                            </Grid.Column>
-                            <Grid.Column>
-                                <Grid style={{ textAlign: "center" }}>
-                                    <Grid.Column width={3}>
-                                        <RadialChart progress={this.state.dataset.model_stats.fvalue * 100} color="#3c71d0" />
-                                    </Grid.Column>
-                                    <Grid.Column width={9} style={{margin: "auto" }}>
-                                        <Header style={{ marginBottom: "2px" }}as='h3'>Precision</Header>
-                                        <Header style={{ marginTop: "2px" }} as='h1'>{this.state.dataset.model_stats.fvalue * 100}%</Header>
-                                    </Grid.Column>
-                                </Grid>
-                            </Grid.Column>
-                            <Grid.Column>
-                                <Grid style={{ textAlign: "center" }}>
-                                    <Grid.Column width={3}>
-                                        <RadialChart progress={this.state.dataset.model_stats.predict * 100} color="#3c71d0" />
-                                    </Grid.Column>
-                                    <Grid.Column width={9} style={{margin: "auto" }}>
-                                        <Header style={{ marginBottom: "2px" }}as='h3'>Predict</Header>
-                                        <Header style={{ marginTop: "2px" }} as='h1'>{this.state.dataset.model_stats.predict * 100}%</Header>
-                                    </Grid.Column>
-                                </Grid>
-                            </Grid.Column>
-                            <Grid.Column>
-                                <Grid style={{ textAlign: "center" }}>
-                                    <Grid.Column width={3}>
-                                        <RadialChart progress={this.state.dataset.model_stats.recall * 100} color="#3c71d0" />
-                                    </Grid.Column>
-                                    <Grid.Column width={9} style={{margin: "auto" }}>
-                                        <Header style={{ marginBottom: "2px" }}as='h3'>Recall</Header>
-                                        <Header style={{ marginTop: "2px" }} as='h1'>{this.state.dataset.model_stats.recall * 100}%</Header>
-                                    </Grid.Column>
-                                </Grid>
-                            </Grid.Column>
-                        </Grid.Row>
-                    </Grid>
+                    <br /><br />
+                    <ModelStats 
+                        created_at={this.state.dataset.created_at} 
+                        entries={this.state.dataset.entries} 
+                        recall={this.state.dataset.model_stats.recall}
+                        predict={this.state.dataset.model_stats.predict}
+                        fvalue={this.state.dataset.model_stats.fvalue}/>
                     <Button primary content={"Test Model"} onClick={() => { history.push(`/dataset/${this.state.datasetID}/test`) }} />
                 </div>
             )
@@ -361,12 +313,12 @@ export class DatasetView extends Component {
                 <Icon link size={"large"} name='angle left' color={"blue"} onClick={() => { this.nav_back() }} />
                 {this.state.dataset.name}
                 {this.state.dataset.state === "TRAINING" ? (<Label color={"olive"}>Training Model <Loader style={{ marginLeft: "8px" }} size={"tiny"} active inline /></Label>) : ("")}
+                {this.state.dataset.state === "ERROR" ? (<Popup position={"bottom left"} content={this.state.dataset.message} trigger={<Label color={"red"}>Error</Label>}/>) : ("")}
             </Menu.Item>
         )
     }
 
     render() {
-        console.log(this.state.activeMenu)
         return (
             <MainLayout
                 viewName={"datasets"}

@@ -1,6 +1,8 @@
 import React, { Component } from 'react'
 import { Dropdown, Icon, Menu, Card, Button } from 'semantic-ui-react'
 import history from '../../utils/history';
+import {auth} from '../fire'
+
 
 class AppMenu extends Component {
     constructor(props) {
@@ -33,6 +35,10 @@ class AppMenu extends Component {
         }
     }
 
+    log_out = () => {
+        auth.signOut();
+    };
+
     render_user_content() {
         const user = this.state.user;
         return (
@@ -44,7 +50,7 @@ class AppMenu extends Component {
                     </Card.Header>
                 </Card.Content>
                 <Card.Content>
-                    <Button onClick={this.props.log_out} color='blue'>Sign Out&nbsp;&nbsp;<Icon name={'sign out'} /></Button>
+                    <Button onClick={() => {this.log_out()}} color='blue'>Sign Out&nbsp;&nbsp;<Icon name={'sign out'} /></Button>
                     &nbsp;
                 </Card.Content>
             </Card>

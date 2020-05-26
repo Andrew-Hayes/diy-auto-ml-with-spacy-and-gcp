@@ -16,7 +16,7 @@ const MainLayout = (props) => (
                 </Header>
             </Grid.Column>
             <Grid.Column stretched width={14} style={{padding: '0px', backgroundColor: "#F8F8F8"}}>
-                <AppMenu subMenu={props.subMenu}  user={props.user} log_out={props.log_out} />    
+                <AppMenu subMenu={props.subMenu}  user={props.user} />    
             </Grid.Column>
         </Grid.Row>
         <Grid.Row>

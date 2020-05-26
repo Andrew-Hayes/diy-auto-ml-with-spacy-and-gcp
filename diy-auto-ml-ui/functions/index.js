@@ -388,7 +388,8 @@ exports.train_model = functions.region(region).runWith(runtimeOptsSmall).https.o
                         ".",
                         "--build-arg",
                         `dataset_url=${signedURL}`
-                    ]
+                    ],
+                    "timeout": "3600s"
                 },
                 {
                     "name": "gcr.io/cloud-builders/docker",

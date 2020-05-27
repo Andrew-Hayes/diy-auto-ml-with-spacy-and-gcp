@@ -38,7 +38,7 @@ export class Upload extends Component {
     fileChange = (e) => {
         if (e.target.files[0] && e.target.files[0].name) {
             let wrongType = e.target.files[0].type !== "text/csv"
-            let tooLarge = e.target.files[0].size > 1073741824
+            let tooLarge = e.target.files[0].size > 100000000
             this.setState({
                 fileName: e.target.files[0].name, 
                 file: e.target.files[0],

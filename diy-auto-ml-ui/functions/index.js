@@ -11,7 +11,7 @@ const { GoogleAuth } = require('google-auth-library');
 let auth;
 
 const projectID = "diy-auto-ml"
-const repoitoryName = "github_andrew-hayes_diy-auto-ml-with-spacy-and-gcp"
+const repositoryName = "github_my-name_diy-auto-ml-with-spacy-and-gcp"
 const region = "europe-west1" // limited to: asia-east1, europe-west1, us-central1, asia-northeast1, europe-north1, europe-west4, us-east1, us-east4, us-west1
 
 const runtimeOpts = {
@@ -372,9 +372,9 @@ exports.train_model = functions.region(region).runWith(runtimeOptsSmall).https.o
             "source": {
                 "repoSource": {
                     "projectId": projectID,
-                    "repoName": repoitoryName,
+                    "repoName": repositoryName,
                     "dir": "containers/classifier",
-                    "branchName": "master"
+                    "branchName": "v1.0.0"
                 }
             },
             "steps": [

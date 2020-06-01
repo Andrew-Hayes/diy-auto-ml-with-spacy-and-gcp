@@ -11,7 +11,6 @@ const { GoogleAuth } = require('google-auth-library');
 let auth;
 
 const projectID = "diy-auto-ml"
-const datasetBucket = `${projectID}-dataset-datasets`
 const repoitoryName = "github_andrew-hayes_diy-auto-ml-with-spacy-and-gcp"
 const region = "europe-west1" // limited to: asia-east1, europe-west1, us-central1, asia-northeast1, europe-north1, europe-west4, us-east1, us-east4, us-west1
 
@@ -167,7 +166,7 @@ exports.delete_dataset = functions.region(region).runWith(runtimeOptsSmall).http
         }
     }).then(() => {
         console.log("deleting file")
-        return admin.storage().bucket(datasetBucket).file(`${datasetData.id}.csv`).delete()
+        return admin.storage().bucket(datasetData.bucket).file(`${datasetData.id}.csv`).delete()
     }).then((res) => {
         console.log(res.data)
         return datasetRef.delete()
@@ -357,7 +356,7 @@ exports.train_model = functions.region(region).runWith(runtimeOptsSmall).https.o
             expires: Date.now() + 20 * 60 * 1000, // 15 minutes
         };
         // Get a v4 signed URL for reading the file
-        return admin.storage().bucket(datasetBucket).file(`${docData.id}.csv`).getSignedUrl(options)
+        return admin.storage().bucket(docData.bucket).file(`${docData.id}.csv`).getSignedUrl(options)
     }).then(([url]) => {
         console.log('Generated GET signed URL:');
         console.log(url);
@@ -461,7 +460,6 @@ exports.validate_upload = functions.region(region).runWith(runtimeOptsLarge).sto
     console.log(`id: ${metadata.metadata.id}`)
     let datasetStats = {}
     let entries = 0;
-    let newLocation = "";
     const datasetRef = db.collection('datasets').doc()
     return datasetRef.set({
         owner: metadata.metadata.owner,
@@ -473,7 +471,7 @@ exports.validate_upload = functions.region(region).runWith(runtimeOptsLarge).sto
         label_stats: {},
         state: "AWAITING_ANALYSIS",
         message: "",
-        location: ""
+        bucket: fileBucket
     }).then(() => {
         console.log("added to db, now downloading")
         return admin.storage().bucket(fileBucket).file(fileName).download({ destination: tempFilePath });
@@ -515,15 +513,10 @@ exports.validate_upload = functions.region(region).runWith(runtimeOptsLarge).sto
         Object.keys(stats).forEach((key) => {
             entries += stats[key]
         })
-        const newFile = admin.storage().bucket(fileBucket).file(fileName)
-        newLocation = `gs://${datasetBucket}/${fileName}`;
-        return newFile.move(newLocation);
-    }).then(() => {
         return db.collection('datasets').doc(datasetRef.id).update({
             last_update: Math.round((new Date()).getTime() / 1000),
             state: "READY_FOR_TRAINING",
             label_stats: datasetStats,
-            location: newLocation,
             entries: entries
         })
     }).catch((err) => {

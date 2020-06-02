@@ -1,28 +1,30 @@
 {
   "indexes": [
     {
-      "collectionId": "datasets",
+      "collectionGroup": "datasets",
+      "queryScope": "COLLECTION",
       "fields": [
         {
           "fieldPath": "owner",
-          "mode": "ASCENDING"
+          "order": "ASCENDING"
         },
         {
           "fieldPath": "last_update",
-          "mode": "DESCENDING"
+          "order": "DESCENDING"
         }
       ]
     },
     {
-      "collectionId": "models",
+      "collectionGroup": "models",
+      "queryScope": "COLLECTION",
       "fields": [
         {
           "fieldPath": "owner",
-          "mode": "ASCENDING"
+          "order": "ASCENDING"
         },
         {
           "fieldPath": "last_update",
-          "mode": "DESCENDING"
+          "order": "DESCENDING"
         }
       ]
     }

@@ -1,7 +1,7 @@
 import * as firebase from 'firebase'
 import 'firebase/firestore'
 
-const config = {
+const firebaseConfig = {
     apiKey: "<api key>",
     authDomain: "<auth domain>",
     databaseURL: "<db url>",
@@ -12,7 +12,7 @@ const config = {
     measurementId: "<meassurement id>"
 };
 
-const firebaseApp = firebase.initializeApp(config);
+const firebaseApp = firebase.initializeApp(firebaseConfig);
 let db = firebase.firestore();
 const settings = {};
 db.settings(settings);

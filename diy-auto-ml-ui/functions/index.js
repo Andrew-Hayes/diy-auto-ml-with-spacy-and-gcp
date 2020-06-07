@@ -374,7 +374,7 @@ exports.train_model = functions.region(region).runWith(runtimeOptsSmall).https.o
                     "projectId": projectID,
                     "repoName": repositoryName,
                     "dir": "containers/classifier",
-                    "branchName": "v1.0.0"
+                    "branchName": "master"
                 }
             },
             "steps": [

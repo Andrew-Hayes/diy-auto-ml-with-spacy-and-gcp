@@ -312,7 +312,7 @@ export class DatasetView extends Component {
             <Menu.Item>
                 <Icon link size={"large"} name='angle left' color={"blue"} onClick={() => { this.nav_back() }} />
                 {this.state.dataset.name}
-                {this.state.dataset.state === "TRAINING" ? (<Label color={"olive"}>Training Model <Loader style={{ marginLeft: "8px" }} size={"tiny"} active inline /></Label>) : ("")}
+        {this.state.dataset.state === "TRAINING" ? ([<Label color={"olive"}>Training Model <Loader style={{ marginLeft: "8px" }} size={"tiny"} active inline /></Label>,<span> This can take a while...</span>]) : ("")}
                 {this.state.dataset.state === "ERROR" ? (<Popup position={"bottom left"} content={this.state.dataset.message} trigger={<Label color={"red"}>Error</Label>}/>) : ("")}
             </Menu.Item>
         )

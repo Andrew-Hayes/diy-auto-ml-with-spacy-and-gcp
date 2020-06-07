@@ -388,7 +388,7 @@ exports.train_model = functions.region(region).runWith(runtimeOptsSmall).https.o
                         "--build-arg",
                         `dataset_url=${signedURL}`
                     ],
-                    "timeout": "3600s"
+                    "timeout": "7200s"
                 },
                 {
                     "name": "gcr.io/cloud-builders/docker",
@@ -424,7 +424,7 @@ exports.train_model = functions.region(region).runWith(runtimeOptsSmall).https.o
                 `${datasetID}`,
                 `model-${datasetID.toLowerCase()}`
             ],
-            "timeout": "3900s"
+            "timeout": "7500s"
         }
         console.log("request")
         console.log(`${JSON.stringify(buildRequest)}`)

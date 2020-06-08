@@ -27,7 +27,7 @@ output_dir_name = "./model"
     n_iter=("Number of training iterations", "option", "n", int),
     n_split=("Split for train vs test. Default 80% train", "option", "s", float),
 )
-def main(input_file, n_iter=20, n_split=0.8):
+def main(input_file, n_iter=14, n_split=0.8):
     output_dir = Path(output_dir_name)
     if not output_dir.exists():
         output_dir.mkdir()
